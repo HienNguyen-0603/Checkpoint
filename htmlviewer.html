@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RFID Control Interface</title>
+    <script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
+    <style>
+        :root {
+            --bg-main: #f4f7f6;
+            --panel: #ffffff;
+            --text-dark: #2d3436;
+            --active-color: #00b894; /* Xanh lá cây khi sáng */
+            --inactive-color: #ffffff; /* Trắng khi tắt */
+            --border-color: #dfe6e9;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .card {
+            background: var(--panel);
+            width: 90%;
+            max-width: 380px;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #636e72;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .status-display {
+            width: 100%;
+            background: #f8f9fa;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 30px;
+            min-height: 25px;
+        }
+
+        .button-grid {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn-mode {
+            flex: 1;
+            aspect-ratio: 1/1;
+            font-size: 24px;
+            font-weight: 900;
+            border: 2px solid var(--border-color);
+            border-radius: 15px;
+            cursor: pointer;
+            background-color: var(--inactive-color);
+            color: var(--text-dark);
+            transition: all 0.2s ease;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Trạng thái sáng xanh khi được chọn */
+        .btn-mode.active {
+            background-color: var(--active-color);
+            color: white;
+            border-color: #009475;
+            box-shadow: 0 6px 15px rgba(0, 184, 148, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-mode:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <span class="label">Trạng thái</span>
+        <div id="textStatus" class="status-display">Kết nối...</div>
+
+        <span class="label">Chọn Checkpoint</span>
+        <div class="button-grid">
+            <button id="btnA" class="btn-mode">A</button>
+            <button id="btnB" class="btn-mode">B</button>
+            <button id="btnC" class="btn-mode">C</button>
+        </div>
+    </div>
+
+    <script>
+        const eraWidget = new EraWidget();
+        let configV1, configV2, configV3, configV4;
+
+        const btns = {
+            'A': document.getElementById('btnA'),
+            'B': document.getElementById('btnB'),
+            'C': document.getElementById('btnC')
+        };
+        const statusBox = document.getElementById('textStatus');
+
+        eraWidget.init({
+            onConfiguration: (conf) => {
+                // Pin V1, V2, V3 nằm trong mục Actions
+                configV1 = conf.actions?.[0];
+                configV2 = conf.actions?.[1];
+                configV3 = conf.actions?.[2];
+                // Pin V4 nằm trong mục Realtime
+                configV4 = conf.realtime_configs?.[0];
+            },
+            onValues: (values) => {
+                // Cập nhật text từ ESP32 (V4)
+                if (configV4 && values[configV4.id]) {
+                    statusBox.innerText = values[configV4.id].value;
+                }
+            }
+        });
+
+        function selectMode(mode) {
+            // 1. Logic nhấn nhả: Chuyển màu nút được chọn, tắt các nút còn lại
+            Object.keys(btns).forEach(key => {
+                if (key === mode) {
+                    btns[key].classList.add('active');
+                } else {
+                    btns[key].classList.remove('active');
+                }
+            });
+
+            // 2. Gửi giá trị 1 xuống Virtual Pin tương ứng
+            if (mode === 'A' && configV1) eraWidget.triggerAction(configV1.action, null, { value: 1 });
+            if (mode === 'B' && configV2) eraWidget.triggerAction(configV2.action, null, { value: 1 });
+            if (mode === 'C' && configV3) eraWidget.triggerAction(configV3.action, null, { value: 1 });
+        }
+
+        // Gán sự kiện click
+        btns['A'].onclick = () => selectMode('A');
+        btns['B'].onclick = () => selectMode('B');
+        btns['C'].onclick = () => selectMode('C');
+
+    </script>
+</body>
+</html>
